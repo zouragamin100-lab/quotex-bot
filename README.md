@@ -1,2 +1,3 @@
-# quotex-bot
-Quotex Telegram Bot
+# Quotex Telegram Bot
+
+بوت تحليل فني لمنصة Quotex
