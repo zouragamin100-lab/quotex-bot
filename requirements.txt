@@ -1,6 +1,4 @@
 python-telegram-bot==21.4
-pandas
-pandas_ta
-python-dotenv
-requests
-asyncio
+pandas>=2.0.0
+pandas-ta
+pyquotex
