@@ -1,56 +1,43 @@
-import asyncio
-import logging
-from datetime import datetime
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
-from quotexpy import Quotex
+import telebot
+import google.generativeai as genai
 
-logging.basicConfig(level=logging.INFO)
-
-# ================== بياناتك ==================
-EMAIL = "amine827y@gmail.com"
-PASSWORD = "MIDOMIDOMIDO123"
+# === التوكن والـ API Key ===
 TELEGRAM_TOKEN = "8928367627:AAHpiqsRIHKMAKDn4I4E0OGNNIIqXMX2f3M"
+GEMINI_API_KEY = "AIzaSyDsqQO70Y3mAwn8jD3d7rai56I7YzyjviY"
 
-client = None
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# ================== تسجيل الدخول ==================
-async def login_quotex():
-    global client
+# Prompt قوي لتحليل الشارت
+SYSTEM_PROMPT = """
+أنت خبير محترف جداً في تداول Quotex OTC على إطار زمني 1 دقيقة فقط.
+حلل السكرين شارت بعناية كبيرة وأعطني اتجاه واحد فقط.
+
+القواعد الصارمة:
+- الرد يكون كلمة واحدة فقط: "Call" أو "Sell" أو "Wait"
+- استخدم أفضل المؤشرات والأنماط (EMA, RSI, MACD, Bollinger, Support/Resistance, Pinbar, Engulfing...)
+- كن محافظ جداً، لا تعطي إشارة إلا لو كانت الاحتمالية عالية.
+"""
+
+@bot.message_handler(content_types=['photo'])
+def handle_photo(message):
     try:
-        client = Quotex(email=EMAIL, password=PASSWORD)
-        check, reason = await client.connect()
-        if check:
-            print("✅ متصل بـ Quotex بنجاح")
-            return True
+        file_info = bot.get_file(message.photo[-1].file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        response = model.generate_content([
+            SYSTEM_PROMPT,
+            {"mime_type": "image/jpeg", "data": downloaded_file}
+        ])
+        
+        answer = response.text.strip().upper()
+        
+        if "CALL" in answer:
+            bot.reply_to(message, "✅ **Call**")
+        elif "SELL" in answer:
+            bot.reply_to(message, "🔻 **Sell**")
         else:
-            print(f"❌ فشل الاتصال: {reason}")
-            return False
-    except Exception as e:
-        print(f"خطأ في الاتصال: {e}")
-        return False
-
-# ================== الأوامر ==================
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🚀 **البوت شغال الآن!**\n\n"
-        "استخدم الأمر: /signals"
-    )
-
-async def signals(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not client:
-        await update.message.reply_text("❌ البوت غير متصل بـ Quotex")
-        return
-    
-    msg = await update.message.reply_text("🔄 جاري تحليل الأزواج...")
-
-    # هنا سيتم إضافة التحليل لاحقاً
-    await msg.edit_text("✅ البوت يعمل\n\nالإشارات ستظهر قريباً إن شاء الله")
-
-# ================== تشغيل البوت ==================
-def main():
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("signals", signals))
-
-    print("🤖 البوت يعمل على
+            bot.reply_to(message, "⏳ **Wait**")
+            
+    except Exception
